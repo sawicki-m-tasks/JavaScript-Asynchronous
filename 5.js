@@ -8,12 +8,38 @@ class MyPromise {
     return this;
   }
   then(cb) {
-    this.#promise.then(cb);
+    this.#promise = this.#promise.then(cb);
     return this;
   }
 }
 
-let myPromise = new MyPromise((resolve, reject) => {
+let promise = new MyPromise((resolve) => {
+  setTimeout(() => {
+    console.log(1, "async");
+    resolve();
+  }, 0);
+})
+  .synchThen(() => {
+    console.log(2, "sync");
+  })
+  .then(() => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log(3, "async");
+        resolve();
+      }, 1000);
+    });
+  })
+  .then(() => {
+    console.log(4, "async");
+  })
+  .synchThen(() => {
+    console.log(5, "sync");
+  });
+console.log(6, "script done");
+
+
+let myPromise1 = new MyPromise((resolve, reject) => {
   console.log(1);
   resolve();
 }).synchThen(() => {
@@ -46,7 +72,7 @@ class ReversePromise {
   }
 }
 var i = 0;
-let promise = new ReversePromise((resolve, reject) => {
+let promise2 = new ReversePromise((resolve, reject) => {
   console.log(1);
   resolve();
 })
@@ -56,11 +82,10 @@ let promise = new ReversePromise((resolve, reject) => {
 
 class ReversePromise2 {
   #stack;
-  #promise;
   constructor(cb) {
-    this.#promise = new Promise(cb);
+    const promise = new Promise(cb);
     this.#stack = [];
-    this.#promise.then(() => {
+    promise.then(() => {
       this.#stack.reverse().forEach(cb => cb());
     })
   }
@@ -69,10 +94,64 @@ class ReversePromise2 {
     return this;
   }
 }
-let promise2 = new ReversePromise2((resolve, reject) => {
+let promise3 = new ReversePromise2((resolve, reject) => {
   console.log(1);
   resolve();
 })
 .then(() => console.log(2))
 .then(() => console.log(3))
 .then(() => console.log(4));
+
+
+class ReversePromise3 {
+  constructor(callback) {
+    this.callbacks = [];
+
+    this.promise = new Promise((resolve) => {
+      callback(resolve);
+    });
+
+    this.promise.then(async () => {
+      for (const cb of this.callbacks) {
+        let tmp = cb();
+        if (tmp instanceof Promise) {
+          await tmp;
+        } else {
+          let mypromise = new Promise((resolve) => {
+            resolve(cb);
+          });
+          await mypromise;
+        }
+      }
+    });
+  }
+
+  then(next) {
+    this.callbacks.unshift(next);
+    return this;
+  }
+}
+
+const promise4 = new ReversePromise3((resolve) => {
+  setTimeout(() => {
+    console.log(1);
+    resolve();
+  }, 1000);
+})
+  .then(() => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log(2);
+        resolve();
+      }, 1000);
+    });
+  })
+  .then(() => {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        console.log(3);
+        resolve();
+      }, 1000);
+    });
+  })
+  .then(() => console.log(4));
